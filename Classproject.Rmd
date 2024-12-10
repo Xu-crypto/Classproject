@@ -1,13 +1,41 @@
 ---
-title: "Classproject"
+title: "Classproject: Air Pollution Analysis"
 author: "Xu Wang"
 date: "2024-11-19"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+### Data Access
+```{r}
+library(readr)
+library(ggplot2)
+library(tidyverse)
+library(httr)
+library(jsonlite)
+
 ```
+
+```{r}
+# Full file paths
+ambient_pollution_file <- "C:/Users/antho/Downloads/Ambient air pollution attributable deaths.csv"
+household_pollution_file <- "C:/Users/antho/Downloads/HouseHold Air Pollution Attributable deaths.csv"
+
+# Read the CSV files into data frames
+ambient_pollution_data <- read_csv(ambient_pollution_file)
+household_pollution_data <- read_csv(household_pollution_file)
+
+# Preview the first few rows of each dataset
+head(ambient_pollution_data)
+head(household_pollution_data)
+
+# Print summary of each dataset
+summary(ambient_pollution_data)
+summary(household_pollution_data)
+```
+
+# Research Question
+
+"How do deaths attributable to household air pollution compare to those caused by ambient air pollution across different regions and time periods?"
 
 ## R Markdown
 
