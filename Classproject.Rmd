@@ -12,47 +12,226 @@ library(ggplot2)
 library(tidyverse)
 library(httr)
 library(jsonlite)
+library(dplyr)
 
 ```
-
 ```{r}
-# Full file paths
+# File paths
 ambient_pollution_file <- "C:/Users/antho/Downloads/Ambient air pollution attributable deaths.csv"
 household_pollution_file <- "C:/Users/antho/Downloads/HouseHold Air Pollution Attributable deaths.csv"
 
-# Read the CSV files into data frames
+# Load datasets
 ambient_pollution_data <- read_csv(ambient_pollution_file)
 household_pollution_data <- read_csv(household_pollution_file)
 
-# Preview the first few rows of each dataset
+# Inspect datasets
 head(ambient_pollution_data)
 head(household_pollution_data)
+str(ambient_pollution_data)
+str(household_pollution_data)
 
-# Print summary of each dataset
-summary(ambient_pollution_data)
-summary(household_pollution_data)
+#Check for missing values
+colSums(is.na(ambient_data))
+colSums(is.na(household_data))
+
+# Clean ambient pollution data
+cleaned_ambient <- ambient_data %>%
+  # Select relevant columns
+  select(Location, Period, FactValueNumeric, Value) %>%
+  # Rename columns for clarity
+  rename(
+    country = Location,
+    year = Period,
+    deaths = FactValueNumeric,
+    value = Value
+  ) %>%
+  # Remove rows with missing critical values
+  filter(!is.na(deaths))
+
+# Clean household pollution data
+cleaned_household <- household_data %>%
+  # Select relevant columns
+  select(Location, Period, FactValueNumeric, Value) %>%
+  # Rename columns for clarity
+  rename(
+    country = Location,
+    year = Period,
+    deaths = FactValueNumeric,
+    value = Value
+  ) %>%
+  # Remove rows with missing critical values
+  filter(!is.na(deaths))
+
+# Check cleaned datasets
+head(cleaned_ambient)
+head(cleaned_household)
+
+
+# Summary of cleaned data
+summary(cleaned_ambient)
+summary(cleaned_household)
+```
+```{r}
+# Merge datasets by country and year
+merged_data <- inner_join(cleaned_ambient, cleaned_household, by = c("country", "year"), suffix = c("_ambient", "_household"))
+
+# Preview the merged dataset
+head(merged_data)
+
+# Summary of the merged dataset
+summary(merged_data)
+
 ```
 
 # Research Question
 
 "How do deaths attributable to household air pollution compare to those caused by ambient air pollution across different regions and time periods?"
 
-## R Markdown
+### Data verbs cleaned and summarized deaths per million population.
+```{r}
+# Wrangle ambient pollution data
+cleaned_ambient <- ambient_data %>%
+  filter(!is.na(FactValueNumeric), FactValueNumeric > 0) %>%  # Remove missing/zero deaths
+  mutate(deaths_per_million = FactValueNumeric / 1e6) %>%     # Add deaths per million column
+  group_by(Location, Period) %>%                              # Group by country and year
+  summarise(
+    total_deaths = sum(FactValueNumeric, na.rm = TRUE),       # Total deaths by country/year
+    avg_deaths_per_million = mean(deaths_per_million, na.rm = TRUE) # Avg deaths per million
+  ) %>%
+  arrange(desc(total_deaths))                                 # Arrange by total deaths
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+# Wrangle household pollution data
+cleaned_household <- household_data %>%
+  filter(!is.na(FactValueNumeric), FactValueNumeric > 0) %>%
+  mutate(deaths_per_million = FactValueNumeric / 1e6) %>%
+  group_by(Location, Period) %>%
+  summarise(
+    total_deaths = sum(FactValueNumeric, na.rm = TRUE),
+    avg_deaths_per_million = mean(deaths_per_million, na.rm = TRUE)
+  )
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+# View cleaned data
+head(cleaned_ambient)
+head(cleaned_household)
 
-```{r cars}
-summary(cars)
+```
+### Joins combined ambient and household pollution datasets for unified analysis.
+
+```{r}
+# Join datasets by country and year
+merged_data <- inner_join(cleaned_ambient, cleaned_household, by = c("Location", "Period"), suffix = c("_ambient", "_household"))
+
+# View merged data
+head(merged_data)
+
+```
+### Summarize data to find total, average, and maximum deaths.
+
+```{r}
+# Summarize deaths across all countries and years
+summary_stats <- merged_data %>%
+  summarise(
+    total_ambient_deaths = sum(total_deaths_ambient, na.rm = TRUE),
+    avg_ambient_deaths = mean(total_deaths_ambient, na.rm = TRUE),
+    max_ambient_deaths = max(total_deaths_ambient, na.rm = TRUE),
+    total_household_deaths = sum(total_deaths_household, na.rm = TRUE),
+    avg_household_deaths = mean(total_deaths_household, na.rm = TRUE),
+    max_household_deaths = max(total_deaths_household, na.rm = TRUE)
+  )
+
+# View summary statistics
+summary_stats
+
+```
+### Calculate deaths per capita and apply it
+```{r}
+# Define a function to calculate deaths per capita
+calculate_deaths_per_capita <- function(deaths, population) {
+  return(deaths / population * 1e6)
+}
+
+# Apply the function to calculate deaths per capita
+merged_data <- merged_data %>%
+  mutate(
+    deaths_per_capita_ambient = calculate_deaths_per_capita(total_deaths_ambient, 1e8),  # Example population
+    deaths_per_capita_household = calculate_deaths_per_capita(total_deaths_household, 1e8)
+  )
+
+# View updated data
+head(merged_data)
+
+```
+### Reshape the merged data to explore deaths across pollution types.
+```{r}
+# Reshape merged data to a long format
+long_data <- merged_data %>%
+  pivot_longer(
+    cols = c(total_deaths_ambient, total_deaths_household),
+    names_to = "pollution_type",
+    values_to = "deaths"
+  )
+
+# Reshape back to wide format
+wide_data <- long_data %>%
+  pivot_wider(
+    names_from = "pollution_type",
+    values_from = "deaths"
+  )
+
+# View reshaped data
+head(long_data)
+head(wide_data)
+
 ```
 
-## Including Plots
+### Deaths Over Time by Pollution Type
 
-You can also embed plots, for example:
+```{r}
+ggplot(merged_data, aes(x = Period)) +
+  geom_line(aes(y = total_deaths_ambient, color = "Ambient Pollution"), linewidth = 1) +
+  geom_line(aes(y = total_deaths_household, color = "Household Pollution"), linewidth = 1) +
+  labs(
+    title = "Deaths Attributable to Pollution Over Time",
+    x = "Year",
+    y = "Deaths",
+    color = "Pollution Type"
+  ) +
+  scale_color_manual(values = c("Ambient Pollution" = "blue", "Household Pollution" = "red")) +
+  theme_minimal()
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+```
+### Distribution of Deaths by Country
+
+```{r}
+
+ggplot(long_data, aes(x = reorder(Location, -deaths), y = deaths, fill = pollution_type)) +
+  geom_boxplot() +
+  facet_wrap(~pollution_type, scales = "free_y") +
+  labs(
+    title = "Distribution of Deaths by Country",
+    x = "Country",
+    y = "Deaths",
+    fill = "Pollution Type"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+
+```
+### Relationship Between Ambient and Household Deaths
+
+```{r}
+ggplot(merged_data, aes(x = total_deaths_ambient, y = total_deaths_household, color = Location)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", color = "black", linetype = "dashed") +
+  labs(
+    title = "Relationship Between Ambient and Household Pollution Deaths",
+    x = "Ambient Pollution Deaths",
+    y = "Household Pollution Deaths",
+    color = "Country"
+  ) +
+  theme_minimal()
+
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
