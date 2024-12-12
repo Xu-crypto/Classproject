@@ -5,7 +5,7 @@ date: "2024-11-19"
 output: html_document
 ---
 
-### Data Access
+### Libraries
 ```{r}
 library(readr)
 library(ggplot2)
@@ -15,14 +15,16 @@ library(jsonlite)
 library(dplyr)
 
 ```
+
+### Data 
 ```{r}
 # File paths
 ambient_pollution_file <- "C:/Users/antho/Downloads/Ambient air pollution attributable deaths.csv"
 household_pollution_file <- "C:/Users/antho/Downloads/HouseHold Air Pollution Attributable deaths.csv"
 
 # Load datasets
-ambient_pollution_data <- read_csv(ambient_pollution_file)
-household_pollution_data <- read_csv(household_pollution_file)
+ambient_pollution_data <- read.csv(ambient_pollution_file)
+household_pollution_data <- read.csv(household_pollution_file)
 
 # Inspect datasets
 head(ambient_pollution_data)
@@ -30,12 +32,12 @@ head(household_pollution_data)
 str(ambient_pollution_data)
 str(household_pollution_data)
 
-#Check for missing values
-colSums(is.na(ambient_data))
-colSums(is.na(household_data))
+# Check for missing values
+colSums(is.na(ambient_pollution_data))
+colSums(is.na(household_pollution_data))
 
 # Clean ambient pollution data
-cleaned_ambient <- ambient_data %>%
+cleaned_ambient <- ambient_pollution_data %>%
   # Select relevant columns
   select(Location, Period, FactValueNumeric, Value) %>%
   # Rename columns for clarity
@@ -49,7 +51,7 @@ cleaned_ambient <- ambient_data %>%
   filter(!is.na(deaths))
 
 # Clean household pollution data
-cleaned_household <- household_data %>%
+cleaned_household <- household_pollution_data %>%
   # Select relevant columns
   select(Location, Period, FactValueNumeric, Value) %>%
   # Rename columns for clarity
@@ -66,10 +68,10 @@ cleaned_household <- household_data %>%
 head(cleaned_ambient)
 head(cleaned_household)
 
-
 # Summary of cleaned data
 summary(cleaned_ambient)
 summary(cleaned_household)
+
 ```
 ```{r}
 # Merge datasets by country and year
@@ -90,7 +92,7 @@ summary(merged_data)
 ### Data verbs cleaned and summarized deaths per million population.
 ```{r}
 # Wrangle ambient pollution data
-cleaned_ambient <- ambient_data %>%
+cleaned_ambient <- ambient_pollution_data %>%
   filter(!is.na(FactValueNumeric), FactValueNumeric > 0) %>%  # Remove missing/zero deaths
   mutate(deaths_per_million = FactValueNumeric / 1e6) %>%     # Add deaths per million column
   group_by(Location, Period) %>%                              # Group by country and year
@@ -101,7 +103,7 @@ cleaned_ambient <- ambient_data %>%
   arrange(desc(total_deaths))                                 # Arrange by total deaths
 
 # Wrangle household pollution data
-cleaned_household <- household_data %>%
+cleaned_household <- household_pollution_data %>%
   filter(!is.na(FactValueNumeric), FactValueNumeric > 0) %>%
   mutate(deaths_per_million = FactValueNumeric / 1e6) %>%
   group_by(Location, Period) %>%
@@ -113,6 +115,7 @@ cleaned_household <- household_data %>%
 # View cleaned data
 head(cleaned_ambient)
 head(cleaned_household)
+
 
 ```
 ### Joins combined ambient and household pollution datasets for unified analysis.
@@ -234,4 +237,27 @@ ggplot(merged_data, aes(x = total_deaths_ambient, y = total_deaths_household, co
 
 
 ```
+# Key Obervations
+
+Summary of Findings
+Household Pollution Deaths:
+
+Declining over time due to global interventions like cleaner cooking technologies.
+Primarily affects low-income, rural regions.
+Ambient Pollution Deaths:
+
+More stable over time, heavily impacting urban and industrial regions.
+Challenges remain even in high-income countries.
+Regional Variations:
+
+Significant disparities between regions in terms of household pollution deaths, reflecting disparities in access to clean energy.
+Ambient pollution affects countries with high urbanization or industrialization.
+
+### Answer to the Research Question
+Deaths attributable to household air pollution are declining globally but remain concentrated in rural, low-income regions, while deaths from ambient air pollution remain consistently high across industrialized and urbanized areas. There is a notable overlap in regions facing both types of pollution challenges, highlighting the need for combined strategies targeting clean household energy and industrial emission controls.
+
+### Recommendations
+Promote cleaner household energy solutions in low-income countries to continue reducing household pollution deaths.
+Enhance industrial and vehicular emission controls in urbanized regions to tackle ambient pollution.
+Combine global and regional policies to address overlapping air quality challenges for greater impact.
 
